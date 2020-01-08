@@ -4,7 +4,7 @@ Starting as a JupyterNotebook prototype, later will be or Web App or Mobile App 
 # Steps to do: <br/>
 - :heavy_check_mark: Code down first prototype (Doesn't have to make some fair translation).
 - :x: Develop more detailed plan of work.
-- :x: Debug and make prototype make some fair Image-to-Image translation.
+- :x: Debug and make prototype output some fair Image-to-Image translation.
 - :x: Decide which 2 domains to choose.
 - :x: Decide Web or Mobile App.
 - :x: Choose Android, IOS or cross-platform if Mobile and how to host if Web.
