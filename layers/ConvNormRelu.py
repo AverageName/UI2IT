@@ -31,18 +31,14 @@ class ConvNormRelu(nn.Module):
             
             
         self.leaky = leaky
-        if norm:
-            self.norm = get_norm_module(norm)(out_channels)
-        else:
-            self.norm = None
+        self.norm = get_norm_module(norm)(out_channels)
         
     def forward(self, inputs):
         out = inputs
         if self.pad is not None:
             out = self.pad(out)
         out = self.conv(out)
-        if self.norm is not None:
-            out = self.norm(out)
+        out = self.norm(out)
         if self.leaky:
             return F.leaky_relu(out, negative_slope=0.2)
         else:
