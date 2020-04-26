@@ -97,7 +97,47 @@ class LIN(nn.Module):
         
         return self.gamma.expand(inputs.shape[0], -1, -1, -1) * out + self.beta.expand(inputs.shape[0], -1, -1, -1)
 
+
+class AdaLIN(nn.Module):
     
+    def __init__(self, num_features, eps=1e-5):
+        super(AdaLIN, self).__init__()
+        
+        self.num_features = num_features
+        self.eps = eps
+        self.rho = nn.Parameter(torch.empty(1, num_features, 1, 1))
+        self.rho.data.fill_(0.9)
+    
+    def forward(self, inputs, gamma, beta):
+        #inputs_in_mean, inputs_in_var = torch.mean(inputs, dim=[2, 3], keep_dim=True), torch.var(inputs, dim=[2, 3], keep_dim=True)
+        inputs_in_mean = torch.mean(inputs.view(inputs.size(0), inputs.size(1), -1), 2).unsqueeze(2).unsqueeze(3)
+        inputs_in_var = torch.var(inputs.view(inputs.size(0), inputs.size(1), -1), 2).unsqueeze(2).unsqueeze(3)
+        inputs_in = (inputs - inputs_in_mean) / torch.sqrt((inputs_in_var + self.eps))
+        #inputs_ln_mean, inputs_ln_var = torch.mean(inputs, dim[1, 2, 3], keep_dim=True), torch.var(inputs, dim=[1, 2, 3], keep_dim=True)
+        inputs_ln_mean = torch.mean(inputs.view(inputs.size(0), -1), 1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        inputs_ln_var = torch.var(inputs.view(inputs.size(0), -1), 1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        inputs_ln = (inputs - inputs_ln_mean) / torch.sqrt((inputs_ln_var + self.eps))
+        
+        out = self.rho.expand(inputs.shape[0], -1, -1, -1) * inputs_in + \
+              ((1 - self.rho).expand(inputs.shape[0], -1, -1, -1) * inputs_ln)
+        
+        return gamma.unsqueeze(2).unsqueeze(3) * out + beta.unsqueeze(2).unsqueeze(3)
+
+
+class RhoClipper(object):
+
+    def __init__(self, min, max):
+        self.clip_min = min
+        self.clip_max = max
+        assert min < max
+
+    def __call__(self, module):
+
+        if hasattr(module, 'rho'):
+            w = module.rho.data
+            w = w.clamp(self.clip_min, self.clip_max)
+            module.rho.data = w
+
 class ImageBuffer():
     
     def __init__(self, size):
@@ -159,6 +199,23 @@ def set_requires_grad(nets, requires_grad=False):
             if net is not None:
                 for param in net.parameters():
                     param.requires_grad = requires_grad
+
+def init_weights_normal(m):
+    if isinstance(m, nn.Conv2d):
+        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        if hasattr(m, 'bias') and m.bias is not None:
+                torch.nn.init.constant_(m.bias.data, 0.0)
+    elif isinstance(m, nn.ConvTranspose2d):
+        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        if hasattr(m, 'bias') and m.bias is not None:
+                torch.nn.init.constant_(m.bias.data, 0.0)
+    elif isinstance(m, nn.Linear):
+        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        if hasattr(m, 'bias') and m.bias is not None:
+                torch.nn.init.constant_(m.bias.data, 0.0)
+    elif isinstance(m, nn.BatchNorm2d):
+        torch.nn.init.normal_(m.weight, 1.0, 0.02)
+        torch.nn.init.normal_(m.bias, 0.0)
 
 
 def calc_mse_loss(inputs, value=0):
