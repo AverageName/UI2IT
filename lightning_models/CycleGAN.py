@@ -12,6 +12,8 @@ from argparse import ArgumentParser
 import torch.optim as optim
 import torchvision.transforms as transforms
 from PIL import Image
+from collections import OrderedDict
+import torchvision
 
 
 class CycleGAN(LightningModule):
@@ -24,6 +26,7 @@ class CycleGAN(LightningModule):
         self.G2 = ResnetGenerator(hparams.in_channels, hparams.n_blocks, hparams.norm_type_gen)
         self.D1 = PatchGan(hparams.in_channels, hparams.norm_type_discr)
         self.D2 = PatchGan(hparams.in_channels, hparams.norm_type_discr)
+        self.last_imgs = None
         #self.model = CycleGAN_pytorch(hparams)
     
     def forward(self, inputs):
@@ -43,15 +46,17 @@ class CycleGAN(LightningModule):
         parser.add_argument('--norm_type_discr', type=str, default='instance')
         parser.add_argument('--resize', type=int, default=268)
         parser.add_argument('--crop', type=int, default=256)
-        parser.add_argument('--limit', type=int, default=1000)
+        parser.add_argument('--limit', type=int, default=50)
         parser.add_argument('--batch_size', type=int, default=1)
         parser.add_argument('--num_workers', type=int, default=2)
         parser.add_argument('--shuffle', type=bool, default=True)
         parser.add_argument('--folder_names', nargs="+")
-        parser.add_argument('--root', type=str, default='/home/dpakhom1/datasets/people2anime/')
+        parser.add_argument('--root', type=str, default='/content/drive/My Drive/')
         return parser
         
     def training_step(self, batch, batch_nb, optimizer_idx):
+        self.last_imgs = batch
+
         real_A = batch["A"]
         real_B = batch["B"]
         
@@ -141,6 +146,27 @@ class CycleGAN(LightningModule):
         return DataLoader(dataset_train, batch_size=self.hparams.batch_size, shuffle=self.hparams.shuffle,
                           num_workers=self.hparams.num_workers)
     
+    def on_epoch_end(self):
+        real_A = self.last_imgs["A"]
+        real_B = self.last_imgs["B"]
+
+        fake_A = self.G2(real_B.cuda())
+        fake_B = self.G1(real_A.cuda())
+ 
+        print(real_A.shape, real_B.shape, fake_A.shape, fake_B.shape)
+        grid = torchvision.utils.make_grid(torch.cat([real_A, real_B, fake_B, fake_A], dim=0), 
+                                            nrow=2, normalize=True, range=(-1.0, 1.0), scale_each=True)
+        self.logger.experiment.add_image(f'Real Domains and Fake', grid, self.current_epoch)
+    
+    
+    def validation_step(self):
+        pass
+    
+    def val_dataloader(self):
+        pass
+
+    def validation_epoch_end(self):
+        pass
     
         
         
