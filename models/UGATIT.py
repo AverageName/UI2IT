@@ -196,12 +196,12 @@ class PatchGan(nn.Module):
         return out, gap_gmp_logits
 
 
-class UGATIT(nn.Module):
+class UGATIT_pytorch(nn.Module):
     
     
     def __init__(self, in_channels, img_size, num_enc_blocks, num_enc_res_blocks, num_dec_upsample_blocks,
                  num_dec_res_blocks, norm_type, pad_type, local_discr_num_downsample, global_discr_num_downsample):
-        super(UGATIT, self).__init__()
+        super(UGATIT_pytorch, self).__init__()
         
         self.G_AB = Generator(in_channels, img_size, num_enc_blocks, num_enc_res_blocks,
                             num_dec_upsample_blocks, num_dec_res_blocks, norm_type, pad_type)
@@ -283,7 +283,7 @@ class UGATIT(nn.Module):
         loss = 1000 * (cam_loss_AB + cam_loss_BA) + 10 * (identity_loss_A + identity_loss_B) + \
                 10 * (cycle_loss_ABA + cycle_loss_BAB) + (adv_loss_A + adv_loss_B + cam_d_loss_A + cam_d_loss_B)
         
-        loss.backward()
+        #loss.backward()
         
         return loss
     
@@ -319,6 +319,6 @@ class UGATIT(nn.Module):
         
         loss = cam_d_loss_A + cam_d_loss_B + adv_loss_d_A + adv_loss_d_B
 
-        loss.backward()
+        #loss.backward()
         
         return loss

@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from lightning_models.CycleGAN import CycleGAN
+from lightning_models.UGATIT import UGATIT
 from pytorch_lightning import Trainer
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -7,9 +8,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 def main(args):
 
     if args.model_name == 'cyclegan':
-        model = CycleGAN(args)
-    else:
-        pass
+        model = CycleGAN(hparams=args)
+    elif args.model_name == 'ugatit':
+        model = UGATIT(hparams=args)
     
     trainer = Trainer.from_argparse_args(args)
     trainer.fit(model)
@@ -21,12 +22,11 @@ if __name__ == '__main__':
     parser.add_argument("--model_name", type=str, default='cyclegan')
 
     temp_args, _ = parser.parse_known_args()
-    print(temp_args.model_name)
     if temp_args.model_name == 'cyclegan':
         parser = CycleGAN.add_model_specific_args(parser)
-    else:
-        pass
+    elif temp_args.model_name == 'ugatit':
+        parser = UGATIT.add_model_specific_args(parser)
 
-    hparams = parser.parse_args()
+    args = parser.parse_args()
 
-    main(hparams)
+    main(args)
