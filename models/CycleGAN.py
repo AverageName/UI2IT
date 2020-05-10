@@ -79,6 +79,14 @@ class ResnetGenerator(nn.Module):
         out = self.conv6(out)
         #print(out.shape)
         return F.tanh(out)
+
+# class CycleGAN_pytorch(nn.Module):
+    
+#     def __init__(self, in_channels, n_blocks, norm_type_gen, norm_type_discr):
+#         self.G1 = ResnetGenerator(in_channles, n_blocks, norm_type_gen)
+#         self.G2 = ResnetGenerator(in_channles, n_blocks, norm_type_gen)
+#         self.D1 = PatchGAN(in_channels, norm_type_discr)
+#         self.D2 = PatchGAN(in_channels, norm_type_discr)
     
     
 def calc_Gs_outputs(G1, G2, real_A, real_B):
