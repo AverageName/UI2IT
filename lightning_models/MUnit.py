@@ -1,58 +1,52 @@
 import sys
 sys.path.append('..')
-import torch
-from torch.nn import functional as F
-from torch import nn
 from pytorch_lightning.core.lightning import LightningModule
-from datasets.UnalignedDataset import UnalignedDataset
-from torch.utils.data.dataloader import DataLoader
-from utils.utils import calc_mse_loss, ImageStack
-from models.UGATIT import UGATIT_pytorch
+from models.MUnit import *
 from argparse import ArgumentParser
-import torch.optim as optim
-import torchvision.transforms as transforms
-from PIL import Image
 from collections import OrderedDict
-import torchvision
+from utils.utils import ImageStack
 
-
-
-class UGATIT(LightningModule):
+class MUnit(LightningModule):
 
 
     def __init__(self, hparams):
         super().__init__()
-
         self.hparams = hparams
-        print(hparams)
+
+        self.model = MUnit_pytorch(hparams.in_channels, hparams.mlp_hidden_dim, hparams.mlp_num_blocks, hparams.d_num_scales, 
+                                   hparams.enc_style_dims, hparams.enc_cont_num_blocks, hparams.norm_type_cont, hparams.pad_type_cont, 
+                                   hparams.norm_type_style, hparams.pad_type_style, hparams.norm_type_decoder, hparams.pad_type_decoder,
+                                   hparams.norm_type_mlp, hparams.enc_cont_dim)
+        
         self.last_imgs = None
-        self.model = UGATIT_pytorch(hparams.in_channels, hparams.crop, hparams.num_enc_blocks,
-                            hparams.num_enc_res_blocks, hparams.num_dec_upsample_blocks,
-                            hparams.num_dec_res_blocks, hparams.norm_type, hparams.pad_type,
-                            hparams.local_discr_num_downsample, hparams.global_discr_num_downsample)
-    
         self.val_stack = ImageStack(8)
-
-
-    def forward(self, domain_A, domain_B):
-        return self.model(domain_A, domain_B)
-
+    
+    def forward(self, domain_A):
+        style_noise = torch.randn(domain_A.shape[0], self.hparams.enc_style_dims).cuda()
+        content = self.model.G1.encode(domain_A)
+        output = self.model.G2.decode(content, style_noise)
+        return output
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument('--lr', type=float, default=0.0001)
+        parser.add_argument('--lr', type=float, default=0.0002)
         parser.add_argument('--beta_1', type=float, default=0.5)
         parser.add_argument('--beta_2', type=float, default=0.99)
         parser.add_argument('--in_channels', type=int, default=3)
-        parser.add_argument('--num_enc_blocks', type=int, default=3)
-        parser.add_argument('--num_enc_res_blocks', type=int, default=4)
-        parser.add_argument('--num_dec_res_blocks', type=int, default=4)
-        parser.add_argument('--num_dec_upsample_blocks', type=int, default=2)
-        parser.add_argument('--local_discr_num_downsample', type=int, default=3)
-        parser.add_argument('--global_discr_num_downsample', type=int, default=5)
-        parser.add_argument('--norm_type', type=str, default='instance')
-        parser.add_argument('--pad_type', type=str, default='reflection')
+        parser.add_argument('--mlp_hidden_dim', type=int, default=256)
+        parser.add_argument('--mlp_num_blocks', type=int, default=3)
+        parser.add_argument('--d_num_scales', type=int, default=3)
+        parser.add_argument('--enc_style_dims', type=int, default=8)
+        parser.add_argument('--enc_cont_num_blocks', type=int, default=4)
+        parser.add_argument('--norm_type_cont', type=str, default='instance')
+        parser.add_argument('--pad_type_cont', type=str, default='reflection')
+        parser.add_argument('--norm_type_style', type=str, default='none')
+        parser.add_argument('--pad_type_style', type=str, default='reflection')
+        parser.add_argument('--norm_type_decoder', type=str, default='adain')
+        parser.add_argument('--pad_type_decoder', type=str, default='reflection')
+        parser.add_argument('--norm_type_mlp', type=str, default='none')
+        parser.add_argument('--enc_cont_dim', type=int, default=256)
         parser.add_argument('--resize', type=int, default=268)
         parser.add_argument('--crop', type=int, default=256)
         parser.add_argument('--limit', type=int, default=50)
@@ -65,17 +59,15 @@ class UGATIT(LightningModule):
 
         return parser
 
-    
+
     def training_step(self, batch, batch_nb, optimizer_idx):
         self.last_imgs = batch
+
         domain_A = batch["A"]
         domain_B = batch["B"]
 
         if optimizer_idx == 0:
             loss = self.model.backward_Gs(domain_A, domain_B)
-            self.model.G_AB.apply(self.model.rho_clipper)
-            self.model.G_BA.apply(self.model.rho_clipper)
-
             tqdm_dict = {'g_loss': loss}
             output = OrderedDict({
                 'loss': loss,
@@ -84,30 +76,33 @@ class UGATIT(LightningModule):
             })
             
             return output
-        
-        if optimizer_idx == 1:
-            loss = self.model.backward_Ds(domain_A, domain_B)
+
+        elif optimizer_idx == 1:
+
+            fake_A, fake_B = self.model.forward(domain_A, domain_B)
+            loss = self.model.backward_Ds(domain_A, fake_A, domain_B, fake_B)
+
             tqdm_dict = {'d_loss': loss}
             output = OrderedDict({
                 'loss': loss,
                 'progress_bar': tqdm_dict,
                 'log': tqdm_dict
             })
-            
-            return output
 
-    
+            return output
+            
+
     def configure_optimizers(self):
         lr = self.hparams.lr
         beta_1 = self.hparams.beta_1
         beta_2 = self.hparams.beta_2
-
-        optimizer_g = optim.Adam(list(self.model.G_AB.parameters()) + list(self.model.G_BA.parameters()),
+        
+        
+        optimizer_g = optim.Adam(list(self.model.G1.parameters()) + list(self.model.G2.parameters()),
                                  lr=lr, betas=(beta_1, beta_2))
-        optimizer_d = optim.Adam(list(self.model.D_AL.parameters()) + list(self.model.D_AG.parameters()) + \
-                                 list(self.model.D_BL.parameters()) + list(self.model.D_BG.parameters()),
+        optimizer_d = optim.Adam(list(self.model.D1.parameters()) + list(self.model.D2.parameters()),
                                  lr=lr, betas=(beta_1, beta_2))
-
+        
         return [optimizer_g, optimizer_d], []
 
 
@@ -121,31 +116,28 @@ class UGATIT(LightningModule):
                                                                    [round(len(dataset_train)*(1 - self.hparams.val_split)),
                                                                    round(len(dataset_train)* self.hparams.val_split)])
 
-
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.hparams.batch_size, shuffle=self.hparams.shuffle,
-                        num_workers=self.hparams.num_workers)
+                          num_workers=self.hparams.num_workers)
 
     
     def on_epoch_end(self):
         real_A = self.last_imgs["A"]
         real_B = self.last_imgs["B"]
 
-        fake_A, _ = self.model.G_BA(real_B.cuda())
-        fake_B, _ = self.model.G_AB(real_A.cuda())
-
+        fake_A, fake_B = self.model(real_A, real_B)
+ 
         print(real_A.shape, real_B.shape, fake_A.shape, fake_B.shape)
         grid = torchvision.utils.make_grid(torch.cat([real_A, real_B, fake_B, fake_A], dim=0), 
                                             nrow=2, normalize=True, range=(-1.0, 1.0), scale_each=True)
         self.logger.experiment.add_image(f'Real Domains and Fake', grid, self.current_epoch)
 
-    
+
     def validation_step(self, batch, batch_idx):
         real_A = batch["A"]
         real_B = batch["B"]
         
-        fake_A, _ = self.model.G_BA(real_B.cuda())
-        fake_B, _ = self.model.G_AB(real_A.cuda())
+        fake_A, fake_B = self.model(real_A, real_B)
 
         val_loss = self.model.backward_Gs(real_A, real_B)
 
@@ -175,7 +167,3 @@ class UGATIT(LightningModule):
        tqdm_dict = {'g_val_loss': avg_loss}
        return {'val_loss': avg_loss, 'log': tqdm_dict}
     
-    
-
-
-
