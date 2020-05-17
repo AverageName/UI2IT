@@ -3,7 +3,9 @@ import torch.nn as nn
 import random
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import torchvision
 import functools
+import numpy as np
 
 
 #Nvidia implementation
@@ -157,6 +159,23 @@ class ImageBuffer():
             else:
                 return img
 
+class ImageStack():
+    
+    def __init__(self, size):
+        self.stack = {"real":[],
+                      "fake": []}
+        self.size = size
+        self.curr_size = 0
+    
+    def update(self, imgs):
+        if self.curr_size < self.size:
+            if random.random() > 0.5:
+                self.stack["real"].append(imgs[0])
+                self.stack["real"].append(imgs[2])
+                self.stack["fake"].append(imgs[3])
+                self.stack["fake"].append(imgs[1])
+                self.curr_size += 1
+
 class Identity(nn.Module):
     
     
@@ -201,26 +220,21 @@ def set_requires_grad(nets, requires_grad=False):
                     param.requires_grad = requires_grad
 
 def init_weights_normal(m):
-    if isinstance(m, nn.Conv2d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
+    classname = m.__class__.__name__
+    if (classname.find('Conv') == 0 or classname.find('Linear') == 0) and hasattr(m, 'weight'):
+        torch.nn.init.normal_(m.weight.data, 0.0, 0.02)
         if hasattr(m, 'bias') and m.bias is not None:
-                torch.nn.init.constant_(m.bias.data, 0.0)
-    elif isinstance(m, nn.ConvTranspose2d):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-        if hasattr(m, 'bias') and m.bias is not None:
-                torch.nn.init.constant_(m.bias.data, 0.0)
-    elif isinstance(m, nn.Linear):
-        torch.nn.init.normal_(m.weight, 0.0, 0.02)
-        if hasattr(m, 'bias') and m.bias is not None:
-                torch.nn.init.constant_(m.bias.data, 0.0)
-    elif isinstance(m, nn.BatchNorm2d):
+            torch.nn.init.constant_(m.bias.data, 0.0)
+    if classname.find('Batch') == 0 and hassatr(m, 'weight'):
         torch.nn.init.normal_(m.weight, 1.0, 0.02)
-        torch.nn.init.normal_(m.bias, 0.0)
+        if hassatr(m, 'bias') and m.bias is not None:
+            torch.nn.init.normal_(m.bias, 0.0)
 
 
 def calc_mse_loss(inputs, value=0):
     target = torch.Tensor((inputs.shape)).fill_(value).cuda()
     return F.mse_loss(inputs, target)
+
 
 def tensor_to_image(tensor):
     std = torch.Tensor([0.5, 0.5, 0.5])
@@ -229,9 +243,44 @@ def tensor_to_image(tensor):
                                  transforms.ToPILImage()])
     return transf(tensor)
 
-def save_cyclegan_model(G1, G2, D1, D2, path, num_epoch, postfix=''):
-    torch.save(G1.state_dict(), path + 'g1_' + str(num_epoch) + postfix + '.pth')
-    torch.save(G2.state_dict(), path + 'g2_' + str(num_epoch) + postfix + '.pth')
-    torch.save(D1.state_dict(), path + 'd1_' + str(num_epoch) + postfix + '.pth')
-    torch.save(D2.state_dict(), path + 'd2_' + str(num_epoch) + postfix + '.pth')
+
+def load_vgg_feature_extractor():
+    model = torchvision.models.vgg16(pretrained=True)
+    vgg_feature_extractor = model.features[:23]
+    vgg_feature_extractor.eval()
+    
+    for param in vgg_feature_extractor.parameters():
+        param.requires_grad = False
+
+    return vgg_feature_extractor
+
+
+def preprocess_vgg(image):
+    tensortype = type(image.data)
+    (r, g, b) = torch.chunk(image, 3, dim = 1)
+    image = torch.cat((b, g, r), dim = 1) # convert RGB to BGR
+    image = (image + 1) * 255 * 0.5 # [-1, 1] -> [0, 255]
+    mean = tensortype(image.data.size()).cuda()
+    mean[:, 0, :, :] = 103.939
+    mean[:, 1, :, :] = 116.779
+    mean[:, 2, :, :] = 123.680
+    image = image - mean # subtract mean
+    return image
+
+
+def calc_IN_feature_distance(feature_extractor, inputs):
+    inputs_1 = preprocess_vgg(inputs[0])
+    inputs_2 = preprocess_vgg(inputs[1])
+
+    features_1 = feature_extractor(inputs_1)
+    features_2 = feature_extractor(inputs_2)
+
+    instance_norm = torch.nn.InstanceNorm2d(features_1.shape[2], affine=False)
+
+    return torch.mean((instance_norm(features_1) - instance_norm(features_2))**2)
+
+def from_tensor_to_image(tensor):
+    tensor = tensor.detach().cpu().squeeze(0).numpy()
+    tensor = tensor.transpose(1, 2, 0)
+    return ((tensor + 1) * 255 * 0.5).astype(np.uint8)
         

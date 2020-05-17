@@ -6,7 +6,7 @@ import glob
 
 class UnalignedDataset(Dataset):
     
-    def __init__(self, root, folder_names, limit=1000, transform=None):
+    def __init__(self, root, folder_names, limit=-1, transform=None):
         super(UnalignedDataset, self).__init__()
         
         self.root = root
@@ -14,8 +14,12 @@ class UnalignedDataset(Dataset):
         self.folder_names = folder_names
         self.A_paths = glob.glob(os.path.join(root, folder_names[0]) + '/**/*.jpg', recursive=True)
         self.B_paths = glob.glob(os.path.join(root, folder_names[1]) + '/**/*.jpg', recursive=True)
-        self.A_size = min(len(self.A_paths), limit)
-        self.B_size = min(len(self.B_paths), limit)
+        if limit == -1:
+            self.A_size = len(self.A_paths)
+            self.B_size = len(self.B_paths)
+        else:
+            self.A_size = min(len(self.A_paths), limit)
+            self.B_size = min(len(self.B_paths), limit)
         self.A_paths = self.A_paths[:self.A_size]
         self.B_paths = self.B_paths[:self.B_size]
         #print(self.A_paths)

@@ -6,7 +6,7 @@ from torch import nn
 from pytorch_lightning.core.lightning import LightningModule
 from datasets.UnalignedDataset import UnalignedDataset
 from torch.utils.data.dataloader import DataLoader
-from utils.utils import calc_mse_loss
+from utils.utils import calc_mse_loss, ImageStack
 from models.UGATIT import UGATIT_pytorch
 from argparse import ArgumentParser
 import torch.optim as optim
@@ -31,9 +31,12 @@ class UGATIT(LightningModule):
                             hparams.num_dec_res_blocks, hparams.norm_type, hparams.pad_type,
                             hparams.local_discr_num_downsample, hparams.global_discr_num_downsample)
     
+        self.val_stack = ImageStack(8)
+
 
     def forward(self, domain_A, domain_B):
         return self.model(domain_A, domain_B)
+
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -57,6 +60,7 @@ class UGATIT(LightningModule):
         parser.add_argument('--num_workers', type=int, default=2)
         parser.add_argument('--shuffle', type=bool, default=True)
         parser.add_argument('--folder_names', nargs="+")
+        parser.add_argument('--val_split', type=float, default=0.1)
         parser.add_argument('--root', type=str, default='/content/drive/My Drive/')
 
         return parser
@@ -107,14 +111,19 @@ class UGATIT(LightningModule):
         return [optimizer_g, optimizer_d], []
 
 
-    def train_dataloader(self):
+    def prepare_data(self):
         transform = transforms.Compose([transforms.Resize((self.hparams.resize, self.hparams.resize), Image.BICUBIC),
-                                transforms.RandomCrop(self.hparams.crop),
-                                transforms.ToTensor(),
-                                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
+                        transforms.RandomCrop(self.hparams.crop),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
         dataset_train = UnalignedDataset(self.hparams.root, self.hparams.folder_names, self.hparams.limit, transform)
-        print(len(dataset_train))
-        return DataLoader(dataset_train, batch_size=self.hparams.batch_size, shuffle=self.hparams.shuffle,
+        self.train_dataset, self.val_dataset = torch.utils.data.random_split(dataset_train,
+                                                                   [round(len(dataset_train)*(1 - self.hparams.val_split)),
+                                                                   round(len(dataset_train)* self.hparams.val_split)])
+
+
+    def train_dataloader(self):
+        return DataLoader(self.train_dataset, batch_size=self.hparams.batch_size, shuffle=self.hparams.shuffle,
                         num_workers=self.hparams.num_workers)
 
     
@@ -131,15 +140,53 @@ class UGATIT(LightningModule):
         self.logger.experiment.add_image(f'Real Domains and Fake', grid, self.current_epoch)
 
     
-    #def validation_step(self):
-    #    pass
-    
-    #def val_dataloader(self):
-    #    pass
+    def validation_step(self, batch, batch_idx):
+        real_A = batch["A"]
+        real_B = batch["B"]
+        
+        fake_A, _ = self.model.G_BA(real_B.cuda())
+        fake_B, _ = self.model.G_AB(real_A.cuda())
 
-    #def validation_epoch_end(self, outputs):
-    #    pass
+        val_loss = self.model.backward_Gs(real_A, real_B)
+
+        tqdm_dict = {'g_val_loss': val_loss}
+
+        self.val_stack.update([real_A, fake_A, real_B, fake_B])
+
+        return tqdm_dict
     
+
+    def val_dataloader(self):
+        return DataLoader(self.val_dataset, batch_size=self.hparams.batch_size,
+                          num_workers=self.hparams.num_workers)        
+
+
+    def validation_epoch_end(self, outputs):
+       real = self.val_stack.stack["real"]
+       fake = self.val_stack.stack["fake"]
+       #print(real, fake)
+       grid = torchvision.utils.make_grid(torch.cat(real[:8] + fake[:8] + real[8:16] + fake[8:16],dim=0),
+                                          nrow=8, normalize=True, range=(-1.0, 1.0), scale_each=True)
+
+       self.logger.experiment.add_image(f'Real Domains and Fake val', grid, self.current_epoch)
+       self.val_stack = ImageStack(8)
+
+       avg_loss = torch.stack([x['g_val_loss'] for x in outputs]).mean()
+       tqdm_dict = {'g_val_loss': avg_loss}
+       return {'val_loss': avg_loss, 'log': tqdm_dict}
+    
+    
+    @staticmethod
+    def predict_dataloader(args):
+
+        transform = transforms.Compose([transforms.Resize((args.resize, args.resize), Image.BICUBIC),
+                        transforms.RandomCrop(args.crop),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])])
+        dataset_predict = UnalignedDataset(args.root, args.folder_names, args.limit, transform)
+        dataloader_predict = DataLoader(dataset_predict, batch_size=1, num_workers=args.num_workers)
+
+        return dataloader_predict
 
 
 
