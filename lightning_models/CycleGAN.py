@@ -27,10 +27,11 @@ class CycleGAN(LightningModule):
         self.last_imgs = None
         self.val_stack = ImageStack(8)
     
+
     def forward(self, real_A, real_B):
         return self.model(real_A, real_B)
+
         
-    
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)

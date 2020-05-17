@@ -17,10 +17,12 @@ class MUnit(LightningModule):
                                    hparams.enc_style_dims, hparams.enc_cont_num_blocks, hparams.norm_type_cont, hparams.pad_type_cont, 
                                    hparams.norm_type_style, hparams.pad_type_style, hparams.norm_type_decoder, hparams.pad_type_decoder,
                                    hparams.norm_type_mlp, hparams.enc_cont_dim, hparams.use_perceptual_loss)
+
         
         self.last_imgs = None
         self.val_stack = ImageStack(8)
     
+
     def forward(self, domain_A, domain_B):
         return self.model(domain_A, domain_B)
 
@@ -178,4 +180,5 @@ class MUnit(LightningModule):
         dataloader_predict = DataLoader(dataset_predict, batch_size=1, num_workers=args.num_workers)
 
         return dataloader_predict
+
     

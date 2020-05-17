@@ -170,7 +170,6 @@ class MUnitAutoencoder(nn.Module):
         enc_cont, enc_style = self.encode(inputs)
         rec_inputs = self.decode(enc_cont, enc_style)
         return rec_inputs
-    
 
     def assign_adain_params(self, adain_params, model):
         for m in model.modules():
@@ -287,6 +286,7 @@ class MUnit_pytorch(nn.Module):
         
         self.D2 = MSDiscriminator(in_channels, num_scales=d_num_scales)
         
+
         self.use_perceptual_loss = use_perceptual_loss
 
         if use_perceptual_loss:
