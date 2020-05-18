@@ -31,10 +31,11 @@ class CycleGAN(LightningModule):
         self.max_epochs = hparams.max_epochs
         self.decay_epoch = hparams.decay_epoch
     
+
     def forward(self, real_A, real_B):
         return self.model(real_A, real_B)
+
         
-    
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
