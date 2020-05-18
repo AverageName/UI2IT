@@ -1,0 +1,32 @@
+
+
+model_name: "cyclegan"
+gpus: 1
+max_epochs: 5 
+
+#Data preprocessing
+root: '/content/drive/My Drive/'
+limit: 150
+folder_names: ["trainA", "trainB"]
+resize: 286
+crop: 256
+batch_size: 1
+num_workers: 2
+shuffle: true
+val_split: 0.1
+
+#Checpoints path
+save_checkpoint_path: "./checkpoints/"
+load_checkpoint_path: null
+resume_training: False
+
+#Model parameters
+lr: 0.0002
+decay_epoch: 100
+beta_1: 0.5
+beta_2: 0.99
+in_channels: 3
+n_blocks: 9
+norm_type_gen: 'instance'
+norm_type_discr: 'instance'
+

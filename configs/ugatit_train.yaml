@@ -1,0 +1,36 @@
+
+
+model_name: "ugatit"
+gpus: 1
+max_epochs: 5 
+
+#Data preprocessing
+root: '/content/drive/My Drive/'
+limit: 150
+folder_names: ["trainA", "trainB"]
+resize: 286
+crop: 256
+batch_size: 1
+num_workers: 2
+shuffle: True
+val_split: 0.1
+
+#Checpoints path
+save_checkpoint_path: "./checkpoints/"
+load_checkpoint_path: null
+resume_training: False
+
+#Model parameters
+lr: 0.0002
+decay_epoch: 50
+beta_1: 0.5
+beta_2: 0.99
+in_channels: 3
+num_enc_blocks: 3
+num_enc_res_blocks: 4
+num_dec_res_blocks: 4
+num_dec_upsample_blocks: 2
+local_discr_num_downsample: 3
+global_discr_num_downsample: 5
+norm_type: 'instance'
+pad_type: 'reflection'

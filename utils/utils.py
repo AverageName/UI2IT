@@ -169,12 +169,17 @@ class ImageStack():
     
     def update(self, imgs):
         if self.curr_size < self.size:
-            if random.random() > 0.5:
-                self.stack["real"].append(imgs[0])
-                self.stack["real"].append(imgs[2])
-                self.stack["fake"].append(imgs[3])
-                self.stack["fake"].append(imgs[1])
-                self.curr_size += 1
+            self.stack["real"].append(imgs[0])
+            self.stack["real"].append(imgs[2])
+            self.stack["fake"].append(imgs[3])
+            self.stack["fake"].append(imgs[1])
+            self.curr_size += 1
+        else:
+            idx = random.randint(0, self.size - 1)
+            self.stack["real"][2 * idx] = imgs[0]
+            self.stack["real"][2 * idx + 1] = imgs[2]
+            self.stack["fake"][2 * idx] = imgs[3]
+            self.stack["fake"][2 * idx + 1] = imgs[1]
 
 class Identity(nn.Module):
     

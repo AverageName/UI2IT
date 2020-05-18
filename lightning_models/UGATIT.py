@@ -32,6 +32,9 @@ class UGATIT(LightningModule):
                             hparams.local_discr_num_downsample, hparams.global_discr_num_downsample)
     
         self.val_stack = ImageStack(8)
+        self.init_lr = hparams.lr
+        self.max_epochs = hparams.max_epochs
+        self.decay_epoch = hparams.decay_epoch
 
 
     def forward(self, domain_A, domain_B):
@@ -53,7 +56,8 @@ class UGATIT(LightningModule):
         parser.add_argument('--global_discr_num_downsample', type=int, default=5)
         parser.add_argument('--norm_type', type=str, default='instance')
         parser.add_argument('--pad_type', type=str, default='reflection')
-        parser.add_argument('--resize', type=int, default=268)
+        parser.add_argument('--decay_epoch', type=int, default=50)
+        parser.add_argument('--resize', type=int, default=286)
         parser.add_argument('--crop', type=int, default=256)
         parser.add_argument('--limit', type=int, default=50)
         parser.add_argument('--batch_size', type=int, default=1)
@@ -103,12 +107,16 @@ class UGATIT(LightningModule):
         beta_2 = self.hparams.beta_2
 
         optimizer_g = optim.Adam(list(self.model.G_AB.parameters()) + list(self.model.G_BA.parameters()),
-                                 lr=lr, betas=(beta_1, beta_2))
+                                 lr=lr, betas=(beta_1, beta_2), weight_decay=0.0001)
         optimizer_d = optim.Adam(list(self.model.D_AL.parameters()) + list(self.model.D_AG.parameters()) + \
                                  list(self.model.D_BL.parameters()) + list(self.model.D_BG.parameters()),
-                                 lr=lr, betas=(beta_1, beta_2))
+                                 lr=lr, betas=(beta_1, beta_2), weight_decay=0.0001)
 
-        return [optimizer_g, optimizer_d], []
+        lr_lambda = lambda epoch: 1.0 if epoch < self.decay_epoch else (self.max_epochs - epoch) / (self.max_epochs - self.decay_epoch)
+        scheduler_g = optim.lr_scheduler.LambdaLR(optimizer_g, lr_lambda=lr_lambda)
+        scheduler_d = optim.lr_scheduler.LambdaLR(optimizer_d, lr_lambda=lr_lambda)
+
+        return [optimizer_g, optimizer_d], [scheduler_g, scheduler_d]
 
 
     def prepare_data(self):
@@ -165,8 +173,14 @@ class UGATIT(LightningModule):
        real = self.val_stack.stack["real"]
        fake = self.val_stack.stack["fake"]
        #print(real, fake)
-       grid = torchvision.utils.make_grid(torch.cat(real[:8] + fake[:8] + real[8:16] + fake[8:16],dim=0),
-                                          nrow=8, normalize=True, range=(-1.0, 1.0), scale_each=True)
+       
+       grid_data = []
+       for i in range(len(real) // 2):
+           grid_data += real[2 * i: 2 * (i + 1)]
+           grid_data += fake[2 * i: 2 * (i + 1)]
+
+       grid = torchvision.utils.make_grid(torch.cat(grid_data, dim=0),
+                                          nrow=2, normalize=True, range=(-1.0, 1.0), scale_each=True)
 
        self.logger.experiment.add_image(f'Real Domains and Fake val', grid, self.current_epoch)
        self.val_stack = ImageStack(8)

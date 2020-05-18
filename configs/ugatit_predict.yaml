@@ -1,0 +1,11 @@
+
+
+model_name: "ugatit"
+root: "/content/drive/My Drive/"
+folder_names: ["testA", "testB"]
+limit: 50
+load_checkpoint_path: "/content/drive/My Drive/Colab Notebooks/Cycle_gan_pytorch/checkpoints/epoch=2.ckpt"
+crop: 256
+resize: 286
+num_workers: 2
+

@@ -20,6 +20,9 @@ class MUnit(LightningModule):
         
         self.last_imgs = None
         self.val_stack = ImageStack(8)
+        self.every_amount_epochs = None
+        print("INITIAL LR: ", hparams.lr)
+        self.curr_lr = hparams.lr
     
     def forward(self, domain_A, domain_B):
         return self.model(domain_A, domain_B)
@@ -100,8 +103,13 @@ class MUnit(LightningModule):
                                  lr=lr, betas=(beta_1, beta_2))
         optimizer_d = optim.Adam(list(self.model.D1.parameters()) + list(self.model.D2.parameters()),
                                  lr=lr, betas=(beta_1, beta_2))
-        
-        return [optimizer_g, optimizer_d], []
+
+        self.every_amount_epochs = 100000 // len(self.train_dataset)
+        lr_lambda = lambda epoch: 1 / 2**(epoch // self.every_amount_epochs)
+        scheduler_g = optim.lr_scheduler.LambdaLR(optimizer_g, lr_lambda=lr_lambda)
+        scheduler_d = optim.lr_scheduler.LambdaLR(optimizer_d, lr_lambda=lr_lambda)
+
+        return [optimizer_g, optimizer_d], [scheduler_g, scheduler_d]
 
 
     def prepare_data(self):
@@ -155,9 +163,15 @@ class MUnit(LightningModule):
     def validation_epoch_end(self, outputs):
        real = self.val_stack.stack["real"]
        fake = self.val_stack.stack["fake"]
-       #print(real, fake)
-       grid = torchvision.utils.make_grid(torch.cat(real[:8] + fake[:8] + real[8:16] + fake[8:16],dim=0),
-                                          nrow=8, normalize=True, range=(-1.0, 1.0), scale_each=True)
+
+
+       grid_data = []
+       for i in range(len(real) // 2):
+           grid_data += real[2 * i: 2 * (i + 1)]
+           grid_data += fake[2 * i: 2 * (i + 1)]
+
+       grid = torchvision.utils.make_grid(torch.cat(grid_data, dim=0),
+                                          nrow=2, normalize=True, range=(-1.0, 1.0), scale_each=True)
 
        self.logger.experiment.add_image(f'Real Domains and Fake val', grid, self.current_epoch)
        self.val_stack = ImageStack(8)
