@@ -1,11 +1,12 @@
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from lightning_models.CycleGAN import CycleGAN
 from lightning_models.UGATIT import UGATIT
 from lightning_models.MUnit import MUnit
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from utils.utils import init_weights_normal
+import yaml
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main(args):
@@ -51,6 +52,7 @@ if __name__ == '__main__':
     parser.add_argument("--save_checkpoint_path", type=str, default='./checkpoints/')
     parser.add_argument("--load_checkpoint_path", type=str)
     parser.add_argument("--resume_training", type=bool, default=False)
+    parser.add_argument("--yaml_path", type=str)
 
     temp_args, _ = parser.parse_known_args()
     if temp_args.model_name == 'cyclegan':
@@ -60,6 +62,12 @@ if __name__ == '__main__':
     elif temp_args.model_name == 'munit':
         parser = MUnit.add_model_specific_args(parser)
 
-    args = parser.parse_args()
+    
+    if temp_args.yaml_path is not None:
+        with open(temp_args.yaml_path, "r") as f:
+            dict_ = yaml.safe_load(f)
+        args = Namespace(**dict_)
+    else:
+        args = parser.parse_args()
 
     main(args)
