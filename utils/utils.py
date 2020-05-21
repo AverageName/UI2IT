@@ -237,7 +237,7 @@ def init_weights_normal(m):
 
 
 def calc_mse_loss(inputs, value=0):
-    target = torch.Tensor((inputs.shape)).fill_(value).cuda()
+    target = torch.Tensor((inputs.shape)).fill_(value).type_as(inputs)
     return F.mse_loss(inputs, target)
 
 
@@ -265,7 +265,7 @@ def preprocess_vgg(image):
     (r, g, b) = torch.chunk(image, 3, dim = 1)
     image = torch.cat((b, g, r), dim = 1) # convert RGB to BGR
     image = (image + 1) * 255 * 0.5 # [-1, 1] -> [0, 255]
-    mean = tensortype(image.data.size()).cuda()
+    mean = tensortype(image.data.size()).type_as(image)
     mean[:, 0, :, :] = 103.939
     mean[:, 1, :, :] = 116.779
     mean[:, 2, :, :] = 123.680

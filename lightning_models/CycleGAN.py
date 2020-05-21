@@ -147,8 +147,8 @@ class CycleGAN(LightningModule):
         real_A = batch["A"]
         real_B = batch["B"]
         
-        fake_A = self.model.G2(real_B.cuda())
-        fake_B = self.model.G1(real_A.cuda())
+        fake_A = self.model.G2(real_B)
+        fake_B = self.model.G1(real_A)
         cycle_BA = self.model.G2(fake_B)
         cycle_AB = self.model.G1(fake_A)
 

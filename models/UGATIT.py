@@ -270,11 +270,11 @@ class UGATIT_pytorch(nn.Module):
         identity_loss_B = F.l1_loss(id_B, domain_B)
         
         #CAM Loss
-        cam_loss_AB = F.binary_cross_entropy_with_logits(logits_cam_AB, torch.ones_like(logits_cam_AB).cuda()) + \
-                        F.binary_cross_entropy_with_logits(logits_cam_BB, torch.zeros_like(logits_cam_BB).cuda())
+        cam_loss_AB = F.binary_cross_entropy_with_logits(logits_cam_AB, torch.ones_like(logits_cam_AB).type_as(logits_cam_AB)) + \
+                        F.binary_cross_entropy_with_logits(logits_cam_BB, torch.zeros_like(logits_cam_BB).type_as(logits_cam_BB))
         
-        cam_loss_BA = F.binary_cross_entropy_with_logits(logits_cam_BA, torch.ones_like(logits_cam_BA).cuda()) + \
-                        F.binary_cross_entropy_with_logits(logits_cam_AA, torch.zeros_like(logits_cam_AA).cuda())
+        cam_loss_BA = F.binary_cross_entropy_with_logits(logits_cam_BA, torch.ones_like(logits_cam_BA).type_as(logits_cam_BA)) + \
+                        F.binary_cross_entropy_with_logits(logits_cam_AA, torch.zeros_like(logits_cam_AA).type_as(logits_cam_AA))
         
         cam_d_loss_A = calc_mse_loss(D_AG_logits_fake, 1.0) + calc_mse_loss(D_AL_logits_fake, 1.0)
         

@@ -298,8 +298,8 @@ class MUnit_pytorch(nn.Module):
         cont_A, style_A = self.G1.encode(domain_A)
         cont_B, style_B = self.G2.encode(domain_B)
         
-        fake_style_B = torch.randn(*style_B.shape).cuda()
-        fake_style_A = torch.randn(*style_A.shape).cuda()
+        fake_style_B = torch.randn(*style_B.shape).type_as(style_B)
+        fake_style_A = torch.randn(*style_A.shape).type_as(style_A)
         
         fake_A = self.G1.decode(cont_B, fake_style_A)
         fake_B = self.G2.decode(cont_A, fake_style_B)
@@ -313,8 +313,8 @@ class MUnit_pytorch(nn.Module):
         cont_B, style_B = self.G2.encode(domain_B)
         
         
-        fake_style_B = torch.randn((*style_B.shape), requires_grad=True).cuda()
-        fake_style_A = torch.randn((*style_A.shape), requires_grad=True).cuda()
+        fake_style_B = torch.randn((*style_B.shape), requires_grad=True).type_as(style_B)
+        fake_style_A = torch.randn((*style_A.shape), requires_grad=True).type_as(style_A)
         
         fake_A = self.G1.decode(cont_B, fake_style_A)
         fake_B = self.G2.decode(cont_A, fake_style_B)

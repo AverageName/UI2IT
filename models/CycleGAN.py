@@ -88,7 +88,6 @@ class CycleGAN_pytorch(nn.Module):
 
         self.image_buffer_A = ImageBuffer(50)
         self.image_buffer_B = ImageBuffer(50)
-    
 
     def forward(self, real_A, real_B):
         fake_B = self.G1(real_A)
@@ -110,14 +109,14 @@ class CycleGAN_pytorch(nn.Module):
 
         fake_A = self.image_buffer_A.update(fake_A)
         fake_output = self.D1(fake_A.detach())
-        d1_fake_loss = F.mse_loss(fake_output, torch.zeros(fake_output.shape).cuda())
+        d1_fake_loss = calc_mse_loss(fake_output, 0.0)
         
         real_output = self.D2(real_B)
         d2_real_loss = calc_mse_loss(real_output, 1.0)
         
         fake_B = self.image_buffer_B.update(fake_B)
         fake_output = self.D2(fake_B.detach())
-        d2_fake_loss = F.mse_loss(fake_output, torch.zeros(fake_output.shape).cuda())
+        d2_fake_loss = calc_mse_loss(fake_output, 0.0)
 
         loss = (d1_fake_loss + d1_real_loss + d2_fake_loss + d2_real_loss) * 0.5
         return loss
