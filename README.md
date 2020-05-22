@@ -4,6 +4,7 @@
   Firstly you need to install dependencies:  
   `pip install -r requirements.txt`  
   ## Training your model    
+  **If you want to run training or prediction on cpu, you should initialize variable gpus with value null in your config file.**    
   Now you can train any model of your choice using this line in your CLI:  
   `python run_trainer --yaml_path <your_config_file>`  
   Also if you want you can write all of your hyperparameters with hands in CLI.    
