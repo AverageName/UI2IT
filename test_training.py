@@ -31,7 +31,8 @@ class Test_training:
         model.apply(init_weights_normal)
         trainer = Trainer(gpus=args.gpus, max_epochs=args.max_epochs, 
                         checkpoint_callback=checkpoint_callback)
-
+        print("ALERT")
+        print(os.listdir(os.path.join(args.root, args.folder_names[0])))
         trainer.fit(model)
     
     @pytest.mark.timeout(180)
