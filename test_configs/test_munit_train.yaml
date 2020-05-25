@@ -5,9 +5,9 @@ gpus: null
 max_epochs: 1
 
 #Data preprocessing
-root: '/content/drive/My Drive/'
+root: './test_data/'
 limit: 10
-folder_names: ["trainA", "trainB"]
+folder_names: ["testA", "testB"]
 resize: 286
 crop: 256
 batch_size: 1
