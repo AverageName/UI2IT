@@ -1,0 +1,41 @@
+
+
+model_name: "munit"
+gpus: null
+max_epochs: 1
+
+#Data preprocessing
+root: '/content/drive/My Drive/'
+limit: 10
+folder_names: ["trainA", "trainB"]
+resize: 286
+crop: 256
+batch_size: 1
+num_workers: 2
+shuffle: True
+val_split: 0.1
+
+#Checpoints path
+save_checkpoint_path: "./checkpoints/"
+load_checkpoint_path: null
+resume_training: False
+
+#Model parameters
+lr: 0.0001
+beta_1: 0.5
+beta_2: 0.99
+in_channels: 3
+mlp_hidden_dim: 256
+mlp_num_blocks: 3
+d_num_scales: 3
+enc_style_dims: 8
+enc_cont_num_blocks: 4
+norm_type_cont: 'instance'
+pad_type_cont: 'reflection'
+norm_type_style: 'none'
+pad_type_style: 'reflection'
+norm_type_decoder: 'adain'
+pad_type_decoder: 'reflection'
+norm_type_mlp: 'none'
+enc_cont_dim: 256
+use_perceptual_loss: False

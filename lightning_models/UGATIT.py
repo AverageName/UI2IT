@@ -139,8 +139,8 @@ class UGATIT(LightningModule):
         real_A = self.last_imgs["A"]
         real_B = self.last_imgs["B"]
 
-        fake_A, _ = self.model.G_BA(real_B.cuda())
-        fake_B, _ = self.model.G_AB(real_A.cuda())
+        fake_A, _ = self.model.G_BA(real_B)
+        fake_B, _ = self.model.G_AB(real_A)
 
         print(real_A.shape, real_B.shape, fake_A.shape, fake_B.shape)
         grid = torchvision.utils.make_grid(torch.cat([real_A, real_B, fake_B, fake_A], dim=0), 
@@ -152,8 +152,8 @@ class UGATIT(LightningModule):
         real_A = batch["A"]
         real_B = batch["B"]
         
-        fake_A, _ = self.model.G_BA(real_B.cuda())
-        fake_B, _ = self.model.G_AB(real_A.cuda())
+        fake_A, _ = self.model.G_BA(real_B)
+        fake_B, _ = self.model.G_AB(real_A)
 
         val_loss = self.model.backward_Gs(real_A, real_B)
 
