@@ -6,7 +6,7 @@
   ## Training your model    
   **If you want to run training or prediction on cpu, you should initialize variable gpus with value null in your config file.**    
   Now you can train any model of your choice using this line in your CLI:  
-  `python run_trainer --yaml_path <your_config_file>`  
+  `python run_trainer.py --yaml_path <your_config_file>`  
   Also if you want you can write all of your hyperparameters with hands in CLI.    
   ## Getting translated images
   Now, when you've trained some model and have your best checkpoint, you can get translated images with this line of code:  
