@@ -6,4 +6,4 @@ scipy==1.1.0
 pytorch_lightning==0.7.6
 matplotlib==3.2.1
 Pillow==7.1.2
-PyYAML==5.3.1
+PyYAML==5.4
